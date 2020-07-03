@@ -1,0 +1,79 @@
+전자정부프레임워크에서 mybatis를 사용하려고 한다. (전자정부프레임워크는 기본적으로 iBatis 사용)
+
+
+
+여기서는 eGovFrame 3.5.1 버전이며, eGovFrame Web Project로 프로젝트를 생성하는 경우를 말한다.
+
+프로젝트 생성시, Generate Example을 체크하고 생성한 경우를 얘기하며, sample 소스를 예로 한다.
+
+(eGovFrame Template Project를 mybatis로 사용하려면, 설정부터 모든 sql을 바꿔줘야한다.)
+
+
+
+src/main/resources/egovframework/spring/ 경로의 아래에 보면 mybatis 설정과  ibatis 설정이 모두 들어있다.
+
+(pom.xml에 mybatis를 추가 할 필요가 없다.)
+
+
+
+context-sqlMap.xml 파일이 ibatis 설정이며,
+
+context-mapper.xml 파일이 mybatis 설정이다.
+
+
+
+ eGovFrame Web Project로 프로젝트를 생성, 서버를 실행시키면 ibatis 설정으로 작동하는 것을 알 수 있다. 
+
+
+
+전자정부프레임 워크는 EgovAbstractDAO 클래스와 EgovAbstractMapper가 존재하는데,
+
+EgovAbstractDAO 가 ibatis 설정이며, EgovAbstractMapper가 mybatis 설정이다.
+
+
+
+쿼리를 실행하기 위한 SampleDAO 파일을 열어보면, EgovAbstractDAO 을 상속 받는 것을 알수있다.
+
+이 부분을 EgovAbstractMapper으로 변경하여 상속받으면, mybatis 설정으로 작동을 하게 된다.
+
+
+
+ibatis 설정
+
+
+
+
+
+mybatis 설정
+
+
+
+
+
+상속받는 클래스를 변경 하면, 에러가 발생하는데 이것은 당연히 ibatis 문법이기 때문이다.
+
+에러나는 부분을 mybatis에 맞게 수정을 하고 실행을 해 보면 에러 없이, mybatis로 작동하는 것을 확인 할 수있다.
+
+
+
+예를 들어 SampleDAO 에 selectSampleListTotCnt 부분은 아래와 같이 변경하면 된다.
+
+
+
+위는 ibatis 아래는 mybatis 입니다.
+
+
+
+public int selectSampleListTotCnt(SampleDefaultVO searchVO) {
+    return (Integer) selectMap("selectSampleListTotCnt", searchVO);
+}
+
+
+public int selectSampleListTotCnt(SampleDefaultVO searchVO) {
+    return (Integer) selectOne("selectSampleListTotCnt", searchVO);
+}
+
+
+
+
+이제부터는 자신의 소스에 맞게 작업을 하면 된다.

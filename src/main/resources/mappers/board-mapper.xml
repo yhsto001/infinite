@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+      PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+ 	<!--MyBatis 뿐만 아니라 iBatis에서도 따옴표를 감싸지 않고 값을 Direct하게 받는 syntax는 ${속성명} 이다. -->
+ 	<!-- WHERE BOARDTITLE LIKE CONCAT('%', #{searchtext}, '%') 이렇게해줘야함 -->
+ 
+  <mapper namespace="boardMapper">
+      
+    <select id="boardList" resultType="Board" parameterType="CommonPage">
+   SELECT ROW_NUMBER() OVER (ORDER BY A.BOARDKEY ASC,A.BOARDGROUP ASC ,A.BOARDGROUPNO DESC)AS BOARDTOTALNO,
+    			A.BOARDNO, 
+				A.USERNO, 
+    			A.BOARDTITLE, 
+    			A.BOARDCONTENT, 
+    			A.BOARDDATE, 
+    			A.BOARDREADCOUNT,
+    			A.USERNAME,
+    			A.BOARDGROUP,
+    			A.BOARDGROUPNO,
+    			A.BOARDDEPTH,
+    			A.BOARDKEY,
+    			A.BOARDPARENT,
+    			A.BOARDDELETESTATE,
+    			B.BOARDTITLE AS BOARDTITLE2
+			FROM (SELECT * FROM BOARD)AS A LEFT JOIN(SELECT BOARDNO,BOARDTITLE FROM BOARD GROUP BY BOARDNO)AS B ON A.BOARDPARENT = B.BOARDNO
+			 		<if test="searchtext != null and selectoption.equals('BOARDTITLE')">
+		 			WHERE A.BOARDTITLE LIKE CONCAT('%',#{searchtext},'%')
+		 			</if>
+		 			<if test="searchtext != null and selectoption.equals('USERNAME')">
+		 			WHERE A.USERNAME LIKE CONCAT('%',#{searchtext},'%')
+		 			</if>
+	        		ORDER BY A.BOARDKEY DESC,A.BOARDGROUP DESC ,A.BOARDGROUPNO ASC
+	    	LIMIT #{startList}, #{endList}
+    </select>
+    
+     <select id="boardListCount" resultType="int" parameterType="CommonPage">
+       SELECT COUNT(*)
+       FROM BOARD 
+       <if test="searchtext != null and selectoption.equals('BOARDTITLE')">
+         WHERE BOARDTITLE LIKE CONCAT('%',#{searchtext},'%')
+       </if>
+    </select>
+    
+     <insert id="boardWrite" parameterType="Board">
+         INSERT INTO BOARD VALUES (NEXT VALUE FOR BNO,
+         						 #{BOARDTITLE}, 
+         						 #{BOARDCONTENT},
+         						 SYSDATE() , 
+         						 #{BOARDREADCOUNT},
+         						 #{USERNAME},
+         						 #{BOARDORIGINALFILE}, 
+         						 #{BOARDRENAMEFILE}, 
+         						 DEFAULT,
+         						 DEFAULT,
+         						 DEFAULT,
+         						NEXT VALUE FOR BKNO,
+         						 DEFAULT,
+         						 DEFAULT,
+         						 #{USERNO})
+     </insert>
+     
+     
+     <!-- 게시판 상세보기 -->
+      <select id="boardDetail" resultType="Board" parameterType="int">
+          SELECT * FROM board WHERE BOARDNO = #{boardno}
+ 	</select>
+ 	<update id="boardReadCount" parameterType="int">
+ 	    UPDATE board SET BOARDREADCOUNT = BOARDREADCOUNT+1 WHERE BOARDNO = #{BOARDNO}
+ 	</update>
+    
+ 	<delete id="boardDelete" parameterType="Board">
+ 	      DELETE FROM board WHERE BOARDKEY = #{BOARDKEY}
+ 	</delete>
+      
+      <update id="boardChange" parameterType="Board" >
+          UPDATE BOARD SET BOARDTITLE = #{BOARDTITLE}, BOARDCONTENT = #{BOARDCONTENT}, BOARDORIGINALFILE = #{BOARDORIGINALFILE}, BOARDRENAMEFILE = #{BOARDRENAMEFILE} WHERE BOARDNO = #{BOARDNO}
+      </update>
+      
+       <update id="boardChange2" parameterType="Board">
+          UPDATE BOARD SET BOARDTITLE = #{BOARDTITLE} ,BOARDCONTENT = #{BOARDCONTENT} WHERE BOARDNO = #{BOARDNO}
+      </update>
+      <select id="boardCommentList" parameterType="int" resultType="BoardComment">
+          SELECT * FROM BOARDCOMMENT WHERE BOARDNO = #{BOARDNO} ORDER BY COMMENTNO DESC
+      </select>
+      <insert id="boardCommentAdd" parameterType="BoardComment">
+             INSERT INTO BOARDCOMMENT VALUES (NEXT VALUE FOR BCNO, #{COMMENTNAME}, SYSDATE() ,#{COMMENTCONTENT},#{BOARDNO},#{USERNO})
+      </insert>
+       <delete id="boardCommentDel" parameterType="BoardComment">
+           DELETE FROM BOARDCOMMENT WHERE COMMENTNO = #{COMMENTNO}
+       </delete>
+       <update id="boardCommnetChange">
+            UPDATE BOARDCOMMENT SET COMMENTCONTENT = #{COMMENTCONTENT} WHERE COMMENTNO = #{COMMENTNO}
+       </update>
+     
+         <select id="replylist" resultType="BoardReply">
+    	SELECT * FROM BOARDREPLY ORDER BY REPLYGROUP DESC ,REPLYGROUPNO ASC
+    </select>
+    <!-- 게시글 댓글 순번확인 -->
+      <select id="boardReplySelect" resultType="int" parameterType="int">
+      SELECT COALESCE(MAX(REPLYGROUP),0) FROM BOARDREPLY WHERE BOARDNO = #{BOARDNO}
+ 	</select>
+ 	
+      <insert id="boardReplyEnroll" parameterType="BoardReply">
+          INSERT INTO BOARDREPLY VALUES (NEXT VALUE FOR BRNO, #{REPLYGROUP} +1 , 1 , 1, #{REPLYNAME},SYSDATE(),#{REPLYCONTENT},DEFAULT,#{BOARDNO},#{USERNO})
+      </insert>
+      <!-- 댓글 원본확인 대댓글용 -->
+      
+      <select id="boardReplySelect2" resultType="BoardReply" parameterType="int">
+           SELECT * FROM BOARDREPLY WHERE REPLYNO = #{replyno}
+      </select>
+      
+      <update id="boardReplyNoUpdate" parameterType="BoardReply">
+          UPDATE BOARDREPLY SET REPLYGROUPNO = REPLYGROUPNO + 1 WHERE BOARDNO = #{BOARDNO} AND REPLYGROUP = #{REPLYGROUP} AND REPLYGROUPNO >= #{REPLYGROUPNO} + 1
+      </update>
+    
+      <insert id="boardReplyInsert" parameterType="BoardReply">
+          INSERT INTO BOARDREPLY VALUES (NEXT VALUE FOR BRNO, #{REPLYGROUP}, #{REPLYGROUPNO} , #{REPLYDEPTH}, #{REPLYNAME},SYSDATE(),#{REPLYCONTENT},DEFAULT,#{BOARDNO},#{USERNO})
+      </insert>
+      <update id="boardReplyDelete" parameterType="int">
+          UPDATE BOARDREPLY SET REPLYDELETE = 'Y' WHERE REPLYNO = #{replyno} 
+      </update>
+      
+      <update id="boardParentUpdate" parameterType="Board">
+            UPDATE BOARD SET BOARDGROUP = #{BOARDGROUP} +1 WHERE BOARDNO = #{BOARDNO} 
+      </update>
+      <insert id="boardReplyAdd" parameterType="Board">
+                   INSERT INTO BOARD VALUES (NEXT VALUE FOR BNO,
+         						 #{BOARDTITLE}, 
+         						 #{BOARDCONTENT},
+         						 SYSDATE() , 
+         						 #{BOARDREADCOUNT},
+         						 #{USERNAME},
+         						 #{BOARDORIGINALFILE}, 
+         						 #{BOARDRENAMEFILE}, 
+         						 #{BOARDGROUP},
+         						 #{BOARDGROUPNO} +1,
+         						 #{BOARDDEPTH} +1,
+         						 #{BOARDKEY},
+         						 #{BOARDPARENT},
+         						 DEFAULT,
+         						 #{USERNO})
+      </insert>
+      
+      <update id="boardreUpdate" parameterType="Board">
+          UPDATE BOARD SET BOARDGROUPNO = BOARDGROUPNO+1 WHERE BOARDKEY = #{BOARDKEY} AND BOARDGROUP = #{BOARDGROUP} AND BOARDGROUPNO >= #{BOARDGROUPNO} +1;
+      </update>
+      
+      <update id="boardDeleteUpdate" parameterType="Board">
+          UPDATE BOARD SET BOARDDELETESTATE = 'Y' WHERE BOARDNO = #{BOARDNO}
+      </update>
+  </mapper>
